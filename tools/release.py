@@ -12,9 +12,10 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "hd2d-scene-builder"
-TOP_FILES = ("SKILL.md", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", ".gitignore", ".gitattributes")
+TOP_FILES = ("SKILL.md", "README.md", "README.en.md", "LICENSE", "THIRD_PARTY_NOTICES.md", ".gitignore", ".gitattributes")
 FOLDERS = ("agents", "references", "assets", "tools")
 DEMO_FILES = ("assets/demos/雨港.html", "assets/demos/千里江山.html")
+PREVIEW_FILES = ("assets/previews/rain-harbor.gif", "assets/previews/mountains-and-rivers.gif")
 
 
 def package_files() -> list[Path]:
@@ -41,7 +42,8 @@ def check() -> list[Path]:
     files = package_files()
     required = (*TOP_FILES, "agents/openai.yaml", "references/pixel-art.md",
                 "references/lighting-stability.md", "references/water.md",
-                "assets/demos/README.md", "assets/demos/licenses/CC0-1.0.txt", *DEMO_FILES)
+                "assets/demos/README.md", "assets/demos/licenses/CC0-1.0.txt", *DEMO_FILES,
+                *PREVIEW_FILES)
     for relative in required:
         if not (ROOT / relative).is_file():
             raise ValueError(f"Missing required file: {relative}")
@@ -58,6 +60,16 @@ def check() -> list[Path]:
         relative = path.relative_to(ROOT).as_posix()
         if path.name.startswith(".env") or path.suffix.lower() in (".pem", ".key"):
             raise ValueError(f"Unexpected private configuration: {relative}")
+        if relative in PREVIEW_FILES:
+            data = path.read_bytes()
+            if (len(data) < 14 or data[:6] not in (b"GIF87a", b"GIF89a")
+                    or data[-1:] != b";"):
+                raise ValueError(f"Invalid GIF header or trailer: {relative}")
+            width = int.from_bytes(data[6:8], "little")
+            height = int.from_bytes(data[8:10], "little")
+            if not (0 < width <= 4096 and 0 < height <= 4096) or len(data) > 5_000_000:
+                raise ValueError(f"Preview dimensions or file size exceed budget: {relative}")
+            continue
         text = path.read_text(encoding="utf-8")
         if secret.search(text) or machine.search(text):
             raise ValueError(f"Review possible credential or machine path in {relative}")
@@ -80,7 +92,7 @@ def check() -> list[Path]:
                     raise ValueError(f"External CSS resource in {relative}")
             if "Permission is hereby granted" not in text or "three.js authors" not in text:
                 raise ValueError(f"Missing embedded third-party license in {relative}")
-    print(f"Checked {len(files)} files, {links} local links, and 2 self-contained HTML demos.")
+    print(f"Checked {len(files)} files, {links} local links, 2 GIF previews, and 2 self-contained HTML demos.")
     print("Static checks only; browser rendering and device behavior require runtime testing.")
     return files
 
