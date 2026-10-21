@@ -1,0 +1,4 @@
+interface:
+  display_name: "HD2D 像素三维场景搭建"
+  short_description: "用三维空间结合像素美术，搭建任意主题的互动场景与空间展示"
+  default_prompt: "使用 $hd2d-scene-builder，制作一个三维空间与像素美术结合的场景；按我的主题、镜头和目标平台选择素材、光影与交互方案。"
